@@ -2,6 +2,6 @@ services:
   - type: web
     name: weather-app
     env: node
-    buildCommand: ""
+    buildCommand: npm install
     startCommand: node server.js
     plan: free
