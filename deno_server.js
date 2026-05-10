@@ -81,9 +81,13 @@ app.get("/api/count", async (c) => {
 });
 
 // Serve static HTML
-const decoder = new TextDecoder();
-const htmlBytes = await Deno.readFile(new URL("./weather.html", import.meta.url));
-const htmlContent = decoder.decode(htmlBytes);
+let htmlContent;
+try {
+  htmlContent = await Deno.readTextFile("./weather.html");
+} catch {
+  // Fallback: minimal page that redirects or shows error
+  htmlContent = "<html><body><h1>Weather App - HTML file missing</h1></body></html>";
+}
 
 app.get("*", (c) => {
   return c.html(htmlContent);
