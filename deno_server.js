@@ -66,11 +66,23 @@ try {
   htmlContent = "<html><body><h1>Weather App</h1><p>HTML file not found</p></body></html>";
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req, info) => {
   const url = new URL(req.url);
   const method = req.method;
 
   if (method === "OPTIONS") return corsPreflight();
+
+  // Proxy geo lookup through server to avoid CORS/403 issues
+  if (url.pathname === "/api/geo" && method === "GET") {
+    const clientIp = info.remoteAddr?.hostname || "me";
+    try {
+      const geoRes = await fetch(`http://ip-api.com/json/${clientIp}?lang=zh-CN`);
+      const geo = await geoRes.json();
+      return json(geo);
+    } catch (e) {
+      return json({ status: "fail", message: e.message }, 502);
+    }
+  }
 
   // API routes
   if (url.pathname === "/api/records" && method === "POST") {

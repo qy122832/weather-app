@@ -188,7 +188,7 @@ async function fetchWeather() {
   // 1. get geo
   let geo;
   try {
-    const geoRes = await fetch("https://ip-api.com/json/");
+    const geoRes = await fetch("/api/geo");
     if (!geoRes.ok) throw new Error(`IP-API 返回 ${geoRes.status}`);
     geo = await geoRes.json();
     if (geo.status !== "success") throw new Error(geo.message || "IP-API 查询失败");
