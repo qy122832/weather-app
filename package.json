@@ -1,0 +1,9 @@
+{
+  "name": "weather",
+  "version": "1.0.0",
+  "description": "Weather app with admin panel",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
