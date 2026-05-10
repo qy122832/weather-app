@@ -74,9 +74,11 @@ Deno.serve(async (req, info) => {
 
   // Proxy geo lookup through server to avoid CORS/403 issues
   if (url.pathname === "/api/geo" && method === "GET") {
-    const clientIp = info.remoteAddr?.hostname || "me";
+    const forwarded = req.headers.get("x-forwarded-for");
+    const clientIp = forwarded?.split(",")[0]?.trim() || info.remoteAddr?.hostname || "";
     try {
-      const geoRes = await fetch(`http://ip-api.com/json/${clientIp}?lang=zh-CN`);
+      const queryUrl = clientIp ? `https://ip-api.com/json/${clientIp}?lang=zh-CN` : "https://ip-api.com/json/";
+      const geoRes = await fetch(queryUrl, { headers: { "user-agent": "WeatherApp/1.0" } });
       const geo = await geoRes.json();
       return json(geo);
     } catch (e) {

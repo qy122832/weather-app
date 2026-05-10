@@ -189,9 +189,9 @@ async function fetchWeather() {
   let geo;
   try {
     const geoRes = await fetch("/api/geo");
-    if (!geoRes.ok) throw new Error(`IP-API 返回 ${geoRes.status}`);
+    if (!geoRes.ok) throw new Error(`位置服务 返回 ${geoRes.status}`);
     geo = await geoRes.json();
-    if (geo.status !== "success") throw new Error(geo.message || "IP-API 查询失败");
+    if (geo.status !== "success") throw new Error(geo.message || "位置服务 查询失败");
   } catch (e) {
     card.innerHTML = `<button class="admin-btn" id="adminBtn" title="管理面板">⚙</button><div class="error">获取位置失败：${esc(e.message)}</div>`;
     document.getElementById("adminBtn").addEventListener("click", showLogin);
