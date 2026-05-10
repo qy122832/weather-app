@@ -77,7 +77,7 @@ Deno.serve(async (req, info) => {
     const forwarded = req.headers.get("x-forwarded-for");
     const clientIp = forwarded?.split(",")[0]?.trim() || info.remoteAddr?.hostname || "";
     try {
-      const queryUrl = clientIp ? `https://ip-api.com/json/${clientIp}?lang=zh-CN` : "https://ip-api.com/json/";
+      const queryUrl = clientIp ? `http://ip-api.com/json/${clientIp}?lang=zh-CN` : "http://ip-api.com/json/";
       const geoRes = await fetch(queryUrl, { headers: { "user-agent": "WeatherApp/1.0" } });
       const geo = await geoRes.json();
       return json(geo);
