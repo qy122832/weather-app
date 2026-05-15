@@ -82,6 +82,18 @@ async function handleRequest(req, res) {
 
   // --- API routes ---
 
+  if (url.pathname === "/api/geo" && method === "GET") {
+    const clientIp = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || "";
+    try {
+      const queryUrl = clientIp ? `http://ip-api.com/json/${clientIp}?lang=zh-CN` : "http://ip-api.com/json/";
+      const geoRes = await fetch(queryUrl, { headers: { "user-agent": "WeatherApp/1.0" } });
+      const geo = await geoRes.json();
+      return json(res, geo);
+    } catch (e) {
+      return json(res, { status: "fail", message: e.message }, 502);
+    }
+  }
+
   if (url.pathname === "/api/records" && method === "POST") {
     const body = await readBody(req);
     insertRecord.run(
