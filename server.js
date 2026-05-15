@@ -3,48 +3,42 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const PORT = process.env.PORT || 3000;
-const DEFAULT_ADMIN_PASSWORD = "111";
-const DB_PATH = path.join(__dirname, "weather.db");
+const DEFAULT_PASSWORD = "111";
+const DATA_PATH = path.join(__dirname, "data.json");
 const HTML_PATH = path.join(__dirname, "weather.html");
 
-// Use better-sqlite3 for cross-platform compatibility (works on Glitch, Render, etc.)
-const Database = require("better-sqlite3");
-const db = new Database(DB_PATH);
+function loadData() {
+  try {
+    const raw = fs.readFileSync(DATA_PATH, "utf-8");
+    return JSON.parse(raw);
+  } catch {
+    return { admin_password: null, records: [], counter: 0 };
+  }
+}
 
-db.pragma("journal_mode = WAL");
-db.exec(`
-  CREATE TABLE IF NOT EXISTS records (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    time TEXT NOT NULL,
-    ip TEXT,
-    city TEXT,
-    region TEXT,
-    country TEXT,
-    lat REAL,
-    lon REAL,
-    temperature REAL,
-    windspeed REAL,
-    winddirection REAL,
-    weathercode INTEGER,
-    condition TEXT
-  )
-`);
-db.exec(`
-  CREATE TABLE IF NOT EXISTS config (
-    key TEXT PRIMARY KEY,
-    value TEXT
-  )
-`);
+let writeLock = false;
+const writeQueue = [];
 
-const insertRecord = db.prepare(`
-  INSERT INTO records (time, ip, city, region, country, lat, lon, temperature, windspeed, winddirection, weathercode, condition)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-`);
-const listRecords = db.prepare("SELECT * FROM records ORDER BY id DESC");
-const countRecords = db.prepare("SELECT COUNT(*) as cnt FROM records");
-const deleteAll = db.prepare("DELETE FROM records");
-const getConfig = db.prepare("SELECT value FROM config WHERE key = ?");
-const setConfig = db.prepare("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)");
+function saveData(data) {
+  fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2), "utf-8");
+}
+
+// thread-safe write via async queue
+function enqueueWrite(fn) {
+  return new Promise(resolve => {
+    writeQueue.push({ fn, resolve });
+    if (!writeLock) processQueue();
+  });
+}
+
+function processQueue() {
+  if (writeQueue.length === 0) { writeLock = false; return; }
+  writeLock = true;
+  const { fn, resolve } = writeQueue.shift();
+  resolve(fn());
+  // Small delay to batch writes, then continue
+  setImmediate(processQueue);
+}
 
 function json(res, data, status = 200) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" });
@@ -62,31 +56,31 @@ function readBody(req) {
   });
 }
 
-function verifyPassword(inputPwd) {
-  const row = getConfig.get("admin_password");
-  if (!row) {
-    setConfig.run("admin_password", DEFAULT_ADMIN_PASSWORD);
-    return inputPwd === DEFAULT_ADMIN_PASSWORD;
+function getPassword() {
+  const data = loadData();
+  if (!data.admin_password) {
+    data.admin_password = DEFAULT_PASSWORD;
+    saveData(data);
   }
-  return row.value === inputPwd;
+  return data.admin_password;
 }
 
 async function handleRequest(req, res) {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const method = req.method;
 
-  // CORS preflight
   if (method === "OPTIONS") {
     res.writeHead(204, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS", "Access-Control-Allow-Headers": "Content-Type" });
     return res.end();
   }
 
-  // --- API routes ---
-
+  // --- geo proxy ---
   if (url.pathname === "/api/geo" && method === "GET") {
-    const clientIp = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || "";
+    const clientIp = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress?.replace(/^::ffff:/, "") || "";
     try {
-      const queryUrl = clientIp ? `http://ip-api.com/json/${clientIp}?lang=zh-CN` : "http://ip-api.com/json/";
+      const queryUrl = clientIp && clientIp !== "127.0.0.1" && clientIp !== "::1"
+        ? `http://ip-api.com/json/${clientIp}?lang=zh-CN`
+        : "http://ip-api.com/json/?lang=zh-CN";
       const geoRes = await fetch(queryUrl, { headers: { "user-agent": "WeatherApp/1.0" } });
       const geo = await geoRes.json();
       return json(res, geo);
@@ -95,40 +89,49 @@ async function handleRequest(req, res) {
     }
   }
 
+  // --- records API ---
   if (url.pathname === "/api/records" && method === "POST") {
     const body = await readBody(req);
-    insertRecord.run(
-      body.time, body.ip, body.city, body.region, body.country,
-      body.lat, body.lon, body.temperature, body.windspeed,
-      body.winddirection, body.weathercode, body.condition
-    );
+    await enqueueWrite(() => {
+      const data = loadData();
+      const id = ++data.counter;
+      data.records.push({ id, ...body });
+      // Keep max 5000 records
+      if (data.records.length > 5000) data.records = data.records.slice(-5000);
+      saveData(data);
+    });
     return json(res, { ok: true });
   }
 
   if (url.pathname === "/api/records" && method === "GET") {
-    const rows = listRecords.all();
-    return json(res, rows);
+    const data = loadData();
+    const records = [...data.records].reverse();
+    return json(res, records);
   }
 
   if (url.pathname === "/api/records" && method === "DELETE") {
     const body = await readBody(req);
-    if (!verifyPassword(body.password)) return json(res, { error: "密码错误" }, 403);
-    deleteAll.run();
+    const pwd = getPassword();
+    if (body.password !== pwd) return json(res, { error: "密码错误" }, 403);
+    await enqueueWrite(() => {
+      const data = loadData();
+      data.records = [];
+      saveData(data);
+    });
     return json(res, { ok: true });
   }
 
   if (url.pathname === "/api/verify-password" && method === "POST") {
     const body = await readBody(req);
-    const ok = verifyPassword(body.password);
-    return json(res, { ok });
+    return json(res, { ok: body.password === getPassword() });
   }
 
   if (url.pathname === "/api/count" && method === "GET") {
-    const row = countRecords.get();
-    return json(res, { count: row.cnt });
+    const data = loadData();
+    return json(res, { count: data.records.length });
   }
 
-  // --- serve static ---
+  // --- serve HTML ---
   try {
     const html = fs.readFileSync(HTML_PATH, "utf-8");
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
