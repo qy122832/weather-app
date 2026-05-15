@@ -1,15 +1,17 @@
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
-const { DatabaseSync } = require("node:sqlite");
 
 const PORT = process.env.PORT || 3000;
 const DEFAULT_ADMIN_PASSWORD = "111";
 const DB_PATH = path.join(__dirname, "weather.db");
 const HTML_PATH = path.join(__dirname, "weather.html");
 
-const db = new DatabaseSync(DB_PATH);
-db.exec("PRAGMA journal_mode=WAL");
+// Use better-sqlite3 for cross-platform compatibility (works on Glitch, Render, etc.)
+const Database = require("better-sqlite3");
+const db = new Database(DB_PATH);
+
+db.pragma("journal_mode = WAL");
 db.exec(`
   CREATE TABLE IF NOT EXISTS records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,7 +36,6 @@ db.exec(`
   )
 `);
 
-// prepared statements
 const insertRecord = db.prepare(`
   INSERT INTO records (time, ip, city, region, country, lat, lon, temperature, windspeed, winddirection, weathercode, condition)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
