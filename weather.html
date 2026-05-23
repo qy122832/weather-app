@@ -50,6 +50,12 @@
   .saved-tip.fail { color: rgba(255,150,100,0.5); }
   .admin-btn { position: absolute; top: 12px; right: 14px; background: none; border: none; color: rgba(255,255,255,0.25); font-size: 18px; cursor: pointer; transition: color 0.2s; }
   .admin-btn:hover { color: rgba(255,255,255,0.7); }
+  .push-bell {
+    position: absolute; top: 12px; left: 14px; background: none; border: none;
+    color: rgba(255,255,255,0.25); font-size: 16px; cursor: pointer; transition: color 0.2s;
+  }
+  .push-bell:hover { color: rgba(255,255,255,0.7); }
+  .push-bell.active { color: #f0c040; }
 
   /* ── admin panel ── */
   .admin-panel {
@@ -68,6 +74,12 @@
   .toolbar button:hover { background: rgba(255,255,255,0.16); }
   .toolbar button.danger { border-color: rgba(255,90,90,0.4); color: #ff6b6b; }
   .toolbar button.danger:hover { background: rgba(255,90,90,0.15); }
+  .toolbar button.primary { background: rgba(100,180,255,0.2); border-color: rgba(100,180,255,0.4); }
+  .toolbar button.primary:hover { background: rgba(100,180,255,0.3); }
+  .tab-btn { padding: 8px 20px; border-radius: 10px 10px 0 0; border: 1px solid rgba(255,255,255,0.1); border-bottom: none; background: transparent; color: rgba(255,255,255,0.5); cursor: pointer; font-size: 14px; transition: all 0.2s; margin-right: 4px; }
+  .tab-btn.active { background: rgba(255,255,255,0.08); color: #fff; }
+  .tab-btn:hover { color: #fff; }
+
   .table-wrap { flex: 1; overflow-y: auto; border-radius: 10px; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06); }
@@ -75,6 +87,28 @@
   td { color: rgba(255,255,255,0.8); }
   tr:hover td { background: rgba(255,255,255,0.03); }
   .empty { text-align: center; color: rgba(255,255,255,0.3); padding: 60px 0; font-size: 15px; }
+
+  /* ── push settings ── */
+  .push-form { padding: 10px 0; }
+  .push-form label { display: block; font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 6px; }
+  .push-form input[type="text"] {
+    width: 100%; padding: 10px 14px; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.06);
+    color: #fff; font-size: 14px; outline: none; margin-bottom: 20px;
+  }
+  .push-form input:focus { border-color: rgba(255,255,255,0.5); }
+  .weather-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 20px; }
+  .weather-checks label {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;
+    font-size: 13px; color: rgba(255,255,255,0.7); transition: all 0.2s;
+  }
+  .weather-checks label:hover { border-color: rgba(255,255,255,0.3); }
+  .weather-checks input:checked + span { color: #fff; }
+  .weather-checks label:has(input:checked) { border-color: rgba(255,200,60,0.5); background: rgba(255,200,60,0.1); }
+  .push-status { margin-top: 12px; font-size: 13px; padding: 8px 12px; border-radius: 8px; }
+  .push-status.success { background: rgba(0,200,100,0.1); color: #4ade80; }
+  .push-status.info { background: rgba(100,180,255,0.1); color: #60a5fa; }
 
   /* ── login ── */
   .login-card {
@@ -102,6 +136,7 @@
 
 <!-- ────── main weather card ────── -->
 <div class="card" id="card">
+  <button class="push-bell" id="pushBtn" title="天气预警推送">🔔</button>
   <button class="admin-btn" id="adminBtn" title="管理面板">⚙</button>
   <div class="loading">正在获取天气...</div>
 </div>
@@ -117,27 +152,78 @@
   </div>
 </div>
 
+<!-- ────── push settings ────── -->
+<div id="pushView" class="hidden">
+  <div class="admin-panel">
+    <div style="display:flex;gap:4px;margin-bottom:16px;">
+      <button class="tab-btn active" id="pushTabBtn">📱 微信推送设置</button>
+    </div>
+    <div class="push-form">
+      <label>Server酱 SendKey</label>
+      <input type="text" id="sendkeyInput" placeholder="在 sct.ftqq.com 登录获取 SendKey">
+      <p style="font-size:11px;color:rgba(255,255,255,0.3);margin:-12px 0 16px;">在 <a href="https://sct.ftqq.com/" target="_blank" style="color:rgba(255,255,255,0.4);">sct.ftqq.com</a> 用 GitHub 登录即可免费获取</p>
+
+      <label>当前监控位置</label>
+      <input type="text" id="pushLocation" readonly style="opacity:0.6;">
+
+      <label>选择要预警的天气类型（可多选）</label>
+      <div class="weather-checks" id="weatherChecks"></div>
+
+      <div style="display:flex;gap:10px;margin-top:8px;">
+        <button id="savePushBtn" class="toolbar button primary" style="flex:1;padding:10px;">保存并开启推送</button>
+        <button id="cancelPushBtn" class="toolbar button" style="flex:1;padding:10px;">取消订阅</button>
+        <button id="backFromPushBtn" class="toolbar button" style="padding:10px;">← 返回天气</button>
+      </div>
+      <div id="pushStatus" class="push-status hidden"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ────── admin panel ────── -->
 <div id="adminView" class="hidden">
   <div class="admin-panel">
-    <h2>历史记录</h2>
-    <p class="sub" id="recordCount">加载中...</p>
-    <div class="toolbar">
-      <button id="refreshBtn">刷新</button>
-      <button id="exportBtn">导出 CSV</button>
-      <button class="danger" id="clearBtn">清空全部</button>
-      <button id="backBtn" style="margin-left:auto;">← 返回天气</button>
+    <div style="display:flex;gap:4px;margin-bottom:16px;">
+      <button class="tab-btn active" id="recordsTabBtn">📋 历史记录</button>
+      <button class="tab-btn" id="pushTabFromAdminBtn">📱 推送设置</button>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>时间</th><th>IP</th><th>城市</th><th>温度</th><th>风速</th><th>风向</th><th>天气</th><th>经度</th><th>纬度</th>
-          </tr>
-        </thead>
-        <tbody id="tbody"></tbody>
-      </table>
-      <div class="empty hidden" id="emptyMsg">暂无记录</div>
+    <div id="recordsTab">
+      <p class="sub" id="recordCount">加载中...</p>
+      <div class="toolbar">
+        <button id="refreshBtn">刷新</button>
+        <button id="exportBtn">导出 CSV</button>
+        <button class="danger" id="clearBtn">清空全部</button>
+        <button id="backBtn" style="margin-left:auto;">← 返回天气</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>时间</th><th>IP</th><th>城市</th><th>温度</th><th>风速</th><th>风向</th><th>天气</th><th>经度</th><th>纬度</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyMsg">暂无记录</div>
+      </div>
+    </div>
+    <div id="pushTab" class="hidden">
+      <div class="push-form">
+        <label>Server酱 SendKey</label>
+        <input type="text" id="sendkeyInput2" placeholder="在 sct.ftqq.com 登录获取 SendKey">
+        <p style="font-size:11px;color:rgba(255,255,255,0.3);margin:-12px 0 16px;">在 sct.ftqq.com 用 GitHub 登录即可免费获取</p>
+
+        <label>当前监控位置</label>
+        <input type="text" id="pushLocation2" readonly style="opacity:0.6;">
+
+        <label>选择要预警的天气类型（可多选）</label>
+        <div class="weather-checks" id="weatherChecks2"></div>
+
+        <div style="display:flex;gap:10px;margin-top:8px;">
+          <button id="savePushBtn2" class="toolbar button primary" style="flex:1;padding:10px;">保存并开启推送</button>
+          <button id="cancelPushBtn2" class="toolbar button" style="flex:1;padding:10px;">取消订阅</button>
+        </div>
+        <div id="pushStatus2" class="push-status hidden"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -153,10 +239,7 @@ async function api(method, path, body) {
     opts.body = JSON.stringify(body);
   }
   const res = await fetch(path, opts);
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `HTTP ${res.status}`);
-  }
+  if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
   return res.json();
 }
 
@@ -179,44 +262,45 @@ const icons = {
   95:"⛈️",96:"⛈️",99:"⛈️"
 };
 
+// Last known geo data (populated by fetchWeather)
+let lastGeo = null;
+
 /* ================================================================
    fetch weather + render card
    ================================================================ */
 async function fetchWeather() {
   const card = document.getElementById("card");
 
-  // 1. get geo
   let geo;
   try {
     const geoRes = await fetch("/api/geo");
-    if (!geoRes.ok) throw new Error(`位置服务 返回 ${geoRes.status}`);
+    if (!geoRes.ok) throw new Error(`位置服务返回 ${geoRes.status}`);
     geo = await geoRes.json();
-    if (geo.status !== "success") throw new Error(geo.message || "位置服务 查询失败");
+    if (geo.status !== "success") throw new Error(geo.message || "位置服务查询失败");
+    lastGeo = { lat: geo.lat, lon: geo.lon, city: geo.city, region: geo.regionName, country: geo.country };
   } catch (e) {
-    card.innerHTML = `<button class="admin-btn" id="adminBtn" title="管理面板">⚙</button><div class="error">获取位置失败：${esc(e.message)}</div>`;
-    document.getElementById("adminBtn").addEventListener("click", showLogin);
+    card.innerHTML = `<button class="push-bell" id="pushBtn" title="天气预警推送">🔔</button><button class="admin-btn" id="adminBtn" title="管理面板">⚙</button><div class="error">获取位置失败：${esc(e.message)}</div>`;
+    bindBtns();
     return;
   }
 
-  // 2. get weather
   let cw;
   try {
     const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${geo.lat}&longitude=${geo.lon}&current_weather=true`;
     const weatherRes = await fetch(weatherUrl);
     if (!weatherRes.ok) throw new Error(`Open-Meteo 返回 ${weatherRes.status}`);
-    const weather = await weatherRes.json();
-    cw = weather.current_weather;
+    cw = (await weatherRes.json()).current_weather;
     if (!cw) throw new Error("未获取到天气数据");
   } catch (e) {
-    card.innerHTML = `<button class="admin-btn" id="adminBtn" title="管理面板">⚙</button><div class="error">获取天气失败：${esc(e.message)}</div>`;
-    document.getElementById("adminBtn").addEventListener("click", showLogin);
+    card.innerHTML = `<button class="push-bell" id="pushBtn" title="天气预警推送">🔔</button><button class="admin-btn" id="adminBtn" title="管理面板">⚙</button><div class="error">获取天气失败：${esc(e.message)}</div>`;
+    bindBtns();
     return;
   }
 
   const condition = conditions[cw.weathercode] || `Code ${cw.weathercode}`;
 
-  // 3. render
   card.innerHTML = `
+    <button class="push-bell active" id="pushBtn" title="天气预警推送">🔔</button>
     <button class="admin-btn" id="adminBtn" title="管理面板">⚙</button>
     <div class="city">${esc(geo.city)}</div>
     <div class="region">${esc(geo.regionName)}, ${esc(geo.country)}</div>
@@ -233,9 +317,8 @@ async function fetchWeather() {
     <div class="ip-row">IP: ${esc(geo.query)} &nbsp;|&nbsp; ${geo.lat}, ${geo.lon}</div>
     <div class="saved-tip hidden" id="savedTip">✓ 已存入数据库</div>
   `;
-  document.getElementById("adminBtn").addEventListener("click", showLogin);
+  bindBtns();
 
-  // 4. save to server (non-blocking, won't break the card if it fails)
   saveRecord({
     time: new Date().toISOString(),
     ip: geo.query,
@@ -252,19 +335,160 @@ async function fetchWeather() {
   });
 }
 
+function bindBtns() {
+  const adminBtn = document.getElementById("adminBtn");
+  const pushBtn = document.getElementById("pushBtn");
+  if (adminBtn) adminBtn.addEventListener("click", showAdmin);
+  if (pushBtn) pushBtn.addEventListener("click", showPush);
+}
+
 async function saveRecord(record) {
   const tip = document.getElementById("savedTip");
   try {
     await api("POST", "/api/records", record);
-    tip.textContent = "✓ 已存入数据库";
-    tip.className = "saved-tip";
-    tip.classList.remove("hidden");
+    if (tip) { tip.textContent = "✓ 已存入数据库"; tip.className = "saved-tip"; tip.classList.remove("hidden"); }
   } catch {
-    tip.textContent = "⚠ 存储失败（服务端未运行）";
-    tip.className = "saved-tip fail";
-    tip.classList.remove("hidden");
+    if (tip) { tip.textContent = "⚠ 存储失败（服务端未运行）"; tip.className = "saved-tip fail"; tip.classList.remove("hidden"); }
   }
 }
+
+/* ================================================================
+   push settings
+   ================================================================ */
+const alertWeatherCodes = [
+  { code: 61, name: "小雨" },
+  { code: 63, name: "中雨" },
+  { code: 65, name: "大雨" },
+  { code: 66, name: "冻雨" },
+  { code: 67, name: "浓冻雨" },
+  { code: 71, name: "小雪" },
+  { code: 73, name: "中雪" },
+  { code: 75, name: "大雪" },
+  { code: 80, name: "小阵雨" },
+  { code: 81, name: "中阵雨" },
+  { code: 82, name: "大阵雨" },
+  { code: 85, name: "小阵雪" },
+  { code: 86, name: "大阵雪" },
+  { code: 95, name: "雷暴" },
+  { code: 96, name: "雷暴+小冰雹" },
+  { code: 99, name: "雷暴+大冰雹" },
+  { code: 45, name: "大雾" },
+];
+
+function renderWeatherChecks(containerId, selectedCodes) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = alertWeatherCodes.map(({ code, name }) => `
+    <label>
+      <input type="checkbox" value="${code}" ${selectedCodes.includes(code) ? "checked" : ""}>
+      <span>${icons[code] || "🌡"} ${name}</span>
+    </label>
+  `).join("");
+}
+
+function getSelectedCodes(containerId) {
+  const container = document.getElementById(containerId);
+  return [...container.querySelectorAll("input:checked")].map(cb => parseInt(cb.value));
+}
+
+function showPush() {
+  document.getElementById("card").classList.add("hidden");
+  document.getElementById("loginView").classList.add("hidden");
+  document.getElementById("adminView").classList.add("hidden");
+  document.getElementById("pushView").classList.remove("hidden");
+
+  const locEl = document.getElementById("pushLocation");
+  if (lastGeo) {
+    locEl.value = `${lastGeo.city}, ${lastGeo.region} (${lastGeo.lat}, ${lastGeo.lon})`;
+  } else {
+    locEl.value = "请先在天气页面获取位置";
+  }
+
+  renderWeatherChecks("weatherChecks", []);
+  document.getElementById("pushStatus").classList.add("hidden");
+
+  // Load existing subscription
+  const savedKey = localStorage.getItem("push_sendkey") || "";
+  document.getElementById("sendkeyInput").value = savedKey;
+  document.getElementById("sendkeyInput").focus();
+}
+
+// Save
+async function savePush(sendkeyInputId, checksContainerId, statusId) {
+  const sendkey = document.getElementById(sendkeyInputId).value.trim();
+  if (!sendkey) { showStatus(statusId, "请输入 Server酱 SendKey", "info"); return; }
+  if (!lastGeo) { showStatus(statusId, "请先在天气页面获取位置信息", "info"); return; }
+
+  const codes = getSelectedCodes(checksContainerId);
+  if (codes.length === 0) { showStatus(statusId, "请至少选择一种天气类型", "info"); return; }
+
+  try {
+    await api("PUT", "/api/subscription", {
+      sendkey,
+      codes,
+      lat: lastGeo.lat,
+      lon: lastGeo.lon,
+      city: lastGeo.city
+    });
+    localStorage.setItem("push_sendkey", sendkey);
+    showStatus(statusId, "✓ 推送已开启！服务端每10分钟轮询一次，匹配到选定天气时将推送到你的微信。", "success");
+  } catch (e) {
+    showStatus(statusId, `保存失败：${e.message}`, "info");
+  }
+}
+
+// Cancel
+async function cancelPush(sendkeyInputId, checksContainerId, statusId) {
+  const sendkey = document.getElementById(sendkeyInputId).value.trim();
+  if (!sendkey) return;
+  try {
+    await api("DELETE", "/api/subscription", { sendkey });
+    document.getElementById(sendkeyInputId).value = "";
+    renderWeatherChecks(checksContainerId, []);
+    showStatus(statusId, "已取消订阅", "info");
+  } catch (e) {
+    showStatus(statusId, `取消失败：${e.message}`, "info");
+  }
+}
+
+function showStatus(statusId, msg, cls) {
+  const el = document.getElementById(statusId);
+  el.textContent = msg;
+  el.className = `push-status ${cls}`;
+  el.classList.remove("hidden");
+}
+
+// Bind push view buttons (primary entry)
+document.getElementById("savePushBtn").addEventListener("click", () => savePush("sendkeyInput", "weatherChecks", "pushStatus"));
+document.getElementById("cancelPushBtn").addEventListener("click", () => cancelPush("sendkeyInput", "weatherChecks", "pushStatus"));
+document.getElementById("backFromPushBtn").addEventListener("click", () => {
+  document.getElementById("pushView").classList.add("hidden");
+  document.getElementById("card").classList.remove("hidden");
+});
+
+// Bind admin tab push buttons
+document.getElementById("savePushBtn2").addEventListener("click", () => savePush("sendkeyInput2", "weatherChecks2", "pushStatus2"));
+document.getElementById("cancelPushBtn2").addEventListener("click", () => cancelPush("sendkeyInput2", "weatherChecks2", "pushStatus2"));
+
+// Tab switching in admin panel
+document.getElementById("recordsTabBtn").addEventListener("click", () => {
+  document.getElementById("recordsTab").classList.remove("hidden");
+  document.getElementById("pushTab").classList.add("hidden");
+  document.getElementById("recordsTabBtn").classList.add("active");
+  document.getElementById("pushTabFromAdminBtn").classList.remove("active");
+});
+document.getElementById("pushTabFromAdminBtn").addEventListener("click", () => {
+  document.getElementById("recordsTab").classList.add("hidden");
+  document.getElementById("pushTab").classList.remove("hidden");
+  document.getElementById("recordsTabBtn").classList.remove("active");
+  document.getElementById("pushTabFromAdminBtn").classList.add("active");
+  // Fill push tab with current data
+  const locEl = document.getElementById("pushLocation2");
+  if (lastGeo) locEl.value = `${lastGeo.city}, ${lastGeo.region} (${lastGeo.lat}, ${lastGeo.lon})`;
+  else locEl.value = "请先在天气页面获取位置";
+  renderWeatherChecks("weatherChecks2", []);
+  document.getElementById("sendkeyInput2").value = localStorage.getItem("push_sendkey") || "";
+  document.getElementById("pushStatus2").classList.add("hidden");
+});
 
 /* ================================================================
    admin login
@@ -272,39 +496,14 @@ async function saveRecord(record) {
 function showLogin() {
   document.getElementById("card").classList.add("hidden");
   document.getElementById("adminView").classList.add("hidden");
+  document.getElementById("pushView").classList.add("hidden");
   const view = document.getElementById("loginView");
   view.classList.remove("hidden");
-
   document.getElementById("loginHint").textContent = "请输入管理员密码";
   document.getElementById("pwdInput").value = "";
   document.getElementById("loginErr").classList.add("hidden");
   document.getElementById("pwdInput").focus();
 }
-
-document.getElementById("loginBtn").addEventListener("click", async () => {
-  const pwd = document.getElementById("pwdInput").value.trim();
-  if (!pwd) return;
-  try {
-    const result = await api("POST", "/api/verify-password", { password: pwd });
-    if (result.ok) {
-      window._adminPwd = pwd;
-      showAdmin();
-    } else {
-      const err = document.getElementById("loginErr");
-      err.textContent = result.error || "密码错误";
-      err.classList.remove("hidden");
-    }
-  } catch (e) {
-    const err = document.getElementById("loginErr");
-    err.textContent = "无法连接服务端，请确认 server.js 已启动";
-    err.classList.remove("hidden");
-  }
-  document.getElementById("pwdInput").value = "";
-});
-
-document.getElementById("pwdInput").addEventListener("keydown", e => {
-  if (e.key === "Enter") document.getElementById("loginBtn").click();
-});
 
 /* ================================================================
    admin panel
@@ -312,7 +511,13 @@ document.getElementById("pwdInput").addEventListener("keydown", e => {
 async function showAdmin() {
   document.getElementById("card").classList.add("hidden");
   document.getElementById("loginView").classList.add("hidden");
+  document.getElementById("pushView").classList.add("hidden");
   document.getElementById("adminView").classList.remove("hidden");
+  // Reset to records tab
+  document.getElementById("recordsTab").classList.remove("hidden");
+  document.getElementById("pushTab").classList.add("hidden");
+  document.getElementById("recordsTabBtn").classList.add("active");
+  document.getElementById("pushTabFromAdminBtn").classList.remove("active");
   await renderTable();
 }
 
@@ -320,29 +525,24 @@ async function renderTable() {
   const tbody = document.getElementById("tbody");
   const empty = document.getElementById("emptyMsg");
   const count = document.getElementById("recordCount");
-
   try {
     const rows = await api("GET", "/api/records");
     count.textContent = `共 ${rows.length} 条记录`;
-    if (rows.length === 0) {
-      tbody.innerHTML = "";
-      empty.classList.remove("hidden");
-    } else {
-      empty.classList.add("hidden");
-      tbody.innerHTML = rows.map(r => `
-        <tr>
-          <td>${fmtTime(r.time)}</td>
-          <td>${esc(r.ip)}</td>
-          <td>${esc(r.city)}, ${esc(r.country)}</td>
-          <td>${r.temperature}°C</td>
-          <td>${r.windspeed} km/h</td>
-          <td>${r.winddirection}°</td>
-          <td>${esc(r.condition)}</td>
-          <td>${r.lon}</td>
-          <td>${r.lat}</td>
-        </tr>
-      `).join("");
-    }
+    if (rows.length === 0) { tbody.innerHTML = ""; empty.classList.remove("hidden"); return; }
+    empty.classList.add("hidden");
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td>${fmtTime(r.time)}</td>
+        <td>${esc(r.ip)}</td>
+        <td>${esc(r.city)}, ${esc(r.country)}</td>
+        <td>${r.temperature}°C</td>
+        <td>${r.windspeed} km/h</td>
+        <td>${r.winddirection}°</td>
+        <td>${esc(r.condition)}</td>
+        <td>${r.lon}</td>
+        <td>${r.lat}</td>
+      </tr>
+    `).join("");
   } catch {
     count.textContent = "加载失败，请确认服务端已启动";
     tbody.innerHTML = "";
@@ -350,60 +550,55 @@ async function renderTable() {
   }
 }
 
-function fmtTime(iso) {
-  const d = new Date(iso);
-  const pad = n => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
+function fmtTime(iso) { const d = new Date(iso); const p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; }
 
-/* ── toolbar actions ── */
-document.getElementById("backBtn").addEventListener("click", () => {
-  document.getElementById("adminView").classList.add("hidden");
-  document.getElementById("loginView").classList.add("hidden");
-  document.getElementById("card").classList.remove("hidden");
+// Login
+document.getElementById("loginBtn").addEventListener("click", async () => {
+  const pwd = document.getElementById("pwdInput").value.trim();
+  if (!pwd) return;
+  try {
+    const result = await api("POST", "/api/verify-password", { password: pwd });
+    if (result.ok) { window._adminPwd = pwd; showAdmin(); return; }
+    document.getElementById("loginErr").textContent = result.error || "密码错误";
+    document.getElementById("loginErr").classList.remove("hidden");
+  } catch {
+    document.getElementById("loginErr").textContent = "无法连接服务端";
+    document.getElementById("loginErr").classList.remove("hidden");
+  }
+  document.getElementById("pwdInput").value = "";
 });
+document.getElementById("pwdInput").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("loginBtn").click(); });
 
+// Toolbar
+document.getElementById("backBtn").addEventListener("click", () => { document.getElementById("adminView").classList.add("hidden"); document.getElementById("card").classList.remove("hidden"); });
 document.getElementById("refreshBtn").addEventListener("click", renderTable);
-
 document.getElementById("exportBtn").addEventListener("click", async () => {
   try {
     const rows = await api("GET", "/api/records");
     if (rows.length === 0) return;
-    const header = "时间,IP,城市,国家,经度,纬度,温度(°C),风速(km/h),风向(°),天气\n";
-    const csv = header + rows.map(r =>
-      `"${fmtTime(r.time)}","${r.ip}","${r.city}","${r.country}","${r.lon}","${r.lat}","${r.temperature}","${r.windspeed}","${r.winddirection}","${r.condition}"`
-    ).join("\n");
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `weather_${new Date().toISOString().slice(0,10)}.csv`; a.click();
-    URL.revokeObjectURL(url);
+    const csv = "时间,IP,城市,国家,经度,纬度,温度(°C),风速(km/h),风向(°),天气\n" + rows.map(r => `"${fmtTime(r.time)}","${r.ip}","${r.city}","${r.country}","${r.lon}","${r.lat}","${r.temperature}","${r.windspeed}","${r.winddirection}","${r.condition}"`).join("\n");
+    const b = new Blob(["﻿" + csv], { type: "text/csv" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `weather_${new Date().toISOString().slice(0, 10)}.csv`; a.click();
   } catch { alert("导出失败，请确认服务端已启动"); }
 });
-
 document.getElementById("clearBtn").addEventListener("click", async () => {
   if (!confirm("确定要清空所有历史记录吗？此操作不可恢复。")) return;
   if (!window._adminPwd) { alert("请先重新登录"); return; }
   try {
     const result = await api("DELETE", "/api/records", { password: window._adminPwd });
-    if (result.ok) {
-      await renderTable();
-    } else {
-      alert(result.error || "操作失败");
-    }
+    if (result.ok) await renderTable();
+    else alert(result.error || "操作失败");
   } catch { alert("操作失败，请确认服务端已启动"); }
-});
-
-/* ── click handler for admin button ── */
-document.getElementById("card").addEventListener("click", e => {
-  if (e.target.id === "adminBtn") showLogin();
 });
 
 /* ================================================================
    start
    ================================================================ */
+document.getElementById("card").addEventListener("click", e => {
+  if (e.target.id === "adminBtn") showLogin();
+  if (e.target.id === "pushBtn" || e.target.closest("#pushBtn")) showPush();
+});
 fetchWeather();
 </script>
-
 </body>
 </html>
